@@ -28,7 +28,9 @@ def build_state(args, parser):
               "verbose": True if args.verbose == True else False,
               "transform": args.transform if args.transform else "dot",
               "tile_size": args.tile_size if args.tile_size else 10,
-              "n_colours": args.n_colours if args.n_colours else 32 }
+              "n_colours": args.n_colours if args.n_colours else 32,
+              "flatten_passes": args.flatten_passes if args.flatten_passes else 6,
+              "median_size": args.flatten_ms if args.flatten_ms else 3 }
 
 def build_parser(program_info:Dict[str,str]):
     parser = argparse.ArgumentParser(
@@ -41,7 +43,9 @@ def build_parser(program_info:Dict[str,str]):
     parser.add_argument("--verbose", "-v", action="store_true")
     parser.add_argument("--transform", "-t")
     parser.add_argument("--tile-size", "-ts")
-    parser.add_argument("--n-colours", "-c")
+    parser.add_argument("--n-colours", "-c"),
+    parser.add_argument("--flatten-passes", "-p")
+    parser.add_argument("--flatten-ms", "-m")
     # parser.print_help()
     return parser
 
@@ -62,7 +66,11 @@ def main(program_info:Dict[str,str]):
         energy_filled = decoder.tile_channel_energy_fill(tiled)
         untiled = decoder.untile_image_rgb(energy_filled)
     elif init_state.get("transform") == "pixel":
-        flat = edge_preserving_flatten(arr, median_size=5, passes=6)
+        flat = edge_preserving_flatten(
+            arr,
+            median_size=int(init_state.get("median_size")),
+            passes=int(init_state.get("flatten_passes"))
+        )
         pix = pixel_art_dominant_tile_quantize(
             flat,
             tile_size=int(init_state.get("tile_size")),
