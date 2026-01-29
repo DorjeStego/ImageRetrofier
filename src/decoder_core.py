@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 import numpy as np
 import io
@@ -326,3 +327,6 @@ class Bitmap:
 class PNG:
     def __init__(self):
         return
+
+if __name__ == "__main__":
+    sys.exit()
