@@ -1,5 +1,7 @@
 import sys
 from pathlib import Path
+from typing import Any, Dict
+
 import numpy as np
 import io
 from PIL import Image, ImageFilter
@@ -8,8 +10,9 @@ from decoder_exceptions import InvalidFiletypeError
 class Decoder:
     _image_types = frozenset(["JPG", "PNG", "BMP"])
 
-    def __init__(self, path_str:str):
+    def __init__(self, path_str:str, init_state:Dict[str, str|int|bool|Any]):
         self.path = path_str
+        self.init_state = init_state
         self.image_type = None
         self._image_bytes = Path(path_str).read_bytes()
         self._type_image(self._image_bytes)
@@ -167,6 +170,8 @@ class Decoder:
         Image.fromarray(out, mode="RGB").save(path)
 
     def save_rgb_image_per_channel(self, path:str|Path, img:np.ndarray):
+        if self.init_state.get("verbose") == True:
+            print(f"Saving output file to {path}...")
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
