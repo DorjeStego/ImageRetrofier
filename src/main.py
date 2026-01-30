@@ -1,6 +1,7 @@
 import os
 import argparse
-from typing import Dict
+from argparse import ArgumentParser
+from typing import Dict, Any
 
 from arg_exceptions import ArgError
 from decoder_core import Decoder
@@ -18,13 +19,10 @@ def build_state(args, parser):
         raise ArgError("No input file", parser)
     if not args.output_filename:
         raise ArgError("No output file", parser)
-    if not args.output_type:
-        raise ArgError("No output file type", parser)
     if not args.verbose:
         print("Not verbose")
     return { "input" : args.input_filename,
               "output" : args.output_filename,
-              "output_type": args.output_type,
               "verbose": True if args.verbose == True else False,
               "transform": args.transform if args.transform else "dot",
               "tile_size": args.tile_size if args.tile_size else 10,
@@ -32,13 +30,50 @@ def build_state(args, parser):
               "flatten_passes": args.flatten_passes if args.flatten_passes else 6,
               "median_size": args.flatten_ms if args.flatten_ms else 3 }
 
+def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParser):
+    if not init_state.get("input"):
+        raise ArgError(
+            f"No input filename argument provided.", parser
+        )
+    if not init_state.get("output"):
+        raise ArgError(
+            f"No output filename argument provided.", parser
+        )
+    if init_state.get("transform") not in {"dot", "energy", "pixel"}:
+        raise ArgError(
+            f"Output type is not valid. Expected one of \"dot\", \"energy\" or \"pixel\" for --transform, got {init_state.get("output_type")}",
+            parser
+        )
+    if not init_state.get("tile_size") or not (isinstance(init_state.get("tile_size"), int) and init_state.get("tile_size") <= 0):
+        raise ArgError(
+            f"Invalid tile size argument provided. Must be positive integer. Got {init_state.get("tile_size")}",
+            parser
+        )
+    if not init_state.get("n_colours") or not (isinstance(init_state.get("n_colours"), int) and init_state.get("n_colours") <= 0):
+        raise ArgError(
+            f"Invalid n_colours argument provided. Must be positive integer. Got {init_state.get("n_colours")}",
+            parser
+        )
+    if not init_state.get("flatten_passes") or not (isinstance(init_state.get("flatten_passes"), int) and init_state.get("flatten_passes") <= 0):
+        raise ArgError(
+            f"Invalid flatten_passes argument provided. Must be positive integer. Got {init_state.get("flatten_passes")}",
+            parser
+        )
+    if not init_state.get("median_size") or not (isinstance(init_state.get("median_size"), int) and init_state.get("median_size") <= 0):
+        raise ArgError(
+            f"Invalid median_size argument provided. Must be positive integer. Got {init_state.get("median_size")}",
+            parser
+        )
+    if init_state.get("verbose") == True:
+        print("Validated input successfully. This does not mean filenames have been resolved.")
+    return
+
 def build_parser(program_info:Dict[str,str]):
     parser = argparse.ArgumentParser(
         prog=program_info.get("program_name", None),
         description=program_info.get("description", None),
         epilog=program_info.get("epilog", None))
     parser.add_argument("--input-filename", "-if")
-    parser.add_argument("--output-type", "-o")
     parser.add_argument("--output-filename", "-of")
     parser.add_argument("--verbose", "-v", action="store_true")
     parser.add_argument("--transform", "-t")
@@ -52,6 +87,7 @@ def build_parser(program_info:Dict[str,str]):
 def main(program_info:Dict[str,str]):
     args, parser = parse_args(program_info)
     init_state = build_state(args, parser)
+    validate_state(init_state, parser)
     decoder = Decoder(init_state.get("input"))
     arr = decoder.decode_image_to_rows()
     tiled = decoder.tile_image_rgb(arr, int(init_state.get("tile_size")), "crop")
