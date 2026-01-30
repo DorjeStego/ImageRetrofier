@@ -263,15 +263,15 @@ def pixel_art_dominant_tile_quantize(
         raise ValueError("mode must be 'strict', 'crop', or 'pad_edge'")
 
     rgb = _to_uint8_rgb(arr)
-    H, W, _ = rgb.shape
+    h, w, _ = rgb.shape
 
-    rem_h, rem_w = H % tile_size, W % tile_size
+    rem_h, rem_w = h % tile_size, w % tile_size
     if rem_h or rem_w:
         if mode == "strict":
-            raise ValueError(f"Image size {(H, W)} not divisible by tile_size={tile_size}")
+            raise ValueError(f"Image size {(h, w)} not divisible by tile_size={tile_size}")
         elif mode == "crop":
-            h2 = H - rem_h
-            w2 = W - rem_w
+            h2 = h - rem_h
+            w2 = w - rem_w
             rgb_work = rgb[:h2, :w2]
         else:  # pad_edge
             pad_h = (tile_size - rem_h) % tile_size
@@ -315,8 +315,8 @@ def pixel_art_dominant_tile_quantize(
     out = np.asarray(img_q, dtype=np.uint8)
 
     # If we padded, you may want to crop back to original H,W to “fit” the input frame.
-    if mode == "pad_edge" and (out.shape[0] != H or out.shape[1] != W):
-        out = out[:H, :W]
+    if mode == "pad_edge" and (out.shape[0] != h or out.shape[1] != w):
+        out = out[:h, :w]
 
     # If we cropped, output is smaller; that’s intentional for a perfect tiling.
     return out
