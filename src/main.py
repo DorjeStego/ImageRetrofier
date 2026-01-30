@@ -22,12 +22,12 @@ def build_state(args, parser):
         print("Not verbose")
     return { "input" : args.input_filename,
               "output" : args.output_filename,
-              "verbose": True if args.verbose == True else False,
-              "transform": args.transform if args.transform else "dot",
-              "tile_size": int(args.tile_size) if args.tile_size else 10,
-              "n_colours": int(args.n_colours) if args.n_colours else 32,
-              "flatten_passes": int(args.flatten_passes) if args.flatten_passes else 1,
-              "median_size": int(args.flatten_ms) if args.median_size else 3 }
+              "verbose": True if getattr(args, "verbose", None) is not None else False,
+              "transform": args.transform if getattr(args, "transform", None) is not None else "dot",
+              "tile_size": int(args.tile_size) if getattr(args, "tile_size", None) is not None else 10,
+              "n_colours": int(args.n_colours) if getattr(args, "n_colours", None) is not None else 32,
+              "flatten_passes": int(args.flatten_passes) if getattr(args, "flatten_passes", None) is not None else 1,
+              "median_size": int(args.flatten_ms) if getattr(args, "median_size", None) is not None else 3 }
 
 def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParser):
     if not init_state.get("input"):
