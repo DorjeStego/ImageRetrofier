@@ -25,10 +25,10 @@ def build_state(args, parser):
               "output" : args.output_filename,
               "verbose": True if args.verbose == True else False,
               "transform": args.transform if args.transform else "dot",
-              "tile_size": args.tile_size if args.tile_size else 10,
-              "n_colours": args.n_colours if args.n_colours else 32,
-              "flatten_passes": args.flatten_passes if args.flatten_passes else 6,
-              "median_size": args.flatten_ms if args.flatten_ms else 3 }
+              "tile_size": int(args.tile_size) if args.tile_size else 10,
+              "n_colours": int(args.n_colours) if args.n_colours else 32,
+              "flatten_passes": int(args.flatten_passes),
+              "median_size": int(args.flatten_ms) }
 
 def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParser):
     if not init_state.get("input"):
@@ -44,22 +44,22 @@ def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParse
             f"Output type is not valid. Expected one of \"dot\", \"energy\" or \"pixel\" for --transform, got {init_state.get("output_type")}",
             parser
         )
-    if not init_state.get("tile_size") or not (isinstance(init_state.get("tile_size"), int) and init_state.get("tile_size") <= 0):
+    if not init_state.get("tile_size") or (not (isinstance(init_state.get("tile_size"), int))) or init_state.get("tile_size") <= 0:
         raise ArgError(
             f"Invalid tile size argument provided. Must be positive integer. Got {init_state.get("tile_size")}",
             parser
         )
-    if not init_state.get("n_colours") or not (isinstance(init_state.get("n_colours"), int) and init_state.get("n_colours") <= 0):
+    if not init_state.get("n_colours") or not isinstance(init_state.get("n_colours"), int) or init_state.get("n_colours") <= 0:
         raise ArgError(
             f"Invalid n_colours argument provided. Must be positive integer. Got {init_state.get("n_colours")}",
             parser
         )
-    if not init_state.get("flatten_passes") or not (isinstance(init_state.get("flatten_passes"), int) and init_state.get("flatten_passes") <= 0):
+    if not init_state.get("flatten_passes") or not isinstance(init_state.get("flatten_passes"), int) or init_state.get("flatten_passes") <= 0:
         raise ArgError(
             f"Invalid flatten_passes argument provided. Must be positive integer. Got {init_state.get("flatten_passes")}",
             parser
         )
-    if not init_state.get("median_size") or not (isinstance(init_state.get("median_size"), int) and init_state.get("median_size") <= 0):
+    if not init_state.get("median_size") or not isinstance(init_state.get("median_size"), int) or init_state.get("median_size") <= 0:
         raise ArgError(
             f"Invalid median_size argument provided. Must be positive integer. Got {init_state.get("median_size")}",
             parser
@@ -79,16 +79,15 @@ def build_parser(program_info:Dict[str,str]):
     parser.add_argument("--transform", "-t")
     parser.add_argument("--tile-size", "-ts")
     parser.add_argument("--n-colours", "-c"),
-    parser.add_argument("--flatten-passes", "-p")
-    parser.add_argument("--flatten-ms", "-m")
-    # parser.print_help()
+    parser.add_argument("--flatten-passes", "-p", default="6")
+    parser.add_argument("--flatten-ms", "-m", default="3")
     return parser
 
 def main(program_info:Dict[str,str]):
     args, parser = parse_args(program_info)
     init_state = build_state(args, parser)
     validate_state(init_state, parser)
-    decoder = Decoder(init_state.get("input"))
+    decoder = Decoder(init_state.get("input"), init_state)
     arr = decoder.decode_image_to_rows()
     tiled = decoder.tile_image_rgb(arr, int(init_state.get("tile_size")), "crop")
     # sanity check
