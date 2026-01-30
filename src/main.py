@@ -26,8 +26,8 @@ def build_state(args, parser):
               "transform": args.transform if args.transform else "dot",
               "tile_size": int(args.tile_size) if args.tile_size else 10,
               "n_colours": int(args.n_colours) if args.n_colours else 32,
-              "flatten_passes": int(args.flatten_passes),
-              "median_size": int(args.flatten_ms) }
+              "flatten_passes": int(args.flatten_passes) if args.flatten_passes else 1,
+              "median_size": int(args.flatten_ms) if args.median_size else 3 }
 
 def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParser):
     if not init_state.get("input"):
@@ -72,14 +72,14 @@ def build_parser(program_info:Dict[str,str]):
         prog=program_info.get("program_name", None),
         description=program_info.get("description", None),
         epilog=program_info.get("epilog", None))
-    parser.add_argument("--input-filename", "-if")
-    parser.add_argument("--output-filename", "-of")
-    parser.add_argument("--verbose", "-v", action="store_true")
-    parser.add_argument("--transform", "-t")
-    parser.add_argument("--tile-size", "-ts")
-    parser.add_argument("--n-colours", "-c"),
-    parser.add_argument("--flatten-passes", "-p", default="6")
-    parser.add_argument("--flatten-ms", "-m", default="3")
+    parser.add_argument("--input-filename", "-if", help="The path to the input filename.")
+    parser.add_argument("--output-filename", "-of", help="The path to the output filename.")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Output verbose logging to the terminal.")
+    parser.add_argument("--transform", "-t", help="The type of image transformation to use. Current options are dot, energy and pixel.")
+    parser.add_argument("--tile-size", "-ts", default="10", help="How many pixels (x,y) per tile? Defaults to 10.")
+    parser.add_argument("--n-colours", "-c", default="32", help="How many colours should the colour palate be constrained to? Defaults to 32."),
+    parser.add_argument("--flatten-passes", "-p", default="6", help="How many passes should the flattener make?")
+    parser.add_argument("--flatten-ms", "-m", default="3", help="How many adjacent tiles should the flattener look at? Defaults to 3.")
     return parser
 
 def main(program_info:Dict[str,str]):
