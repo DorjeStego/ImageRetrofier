@@ -264,7 +264,7 @@ class Decoder:
         if mode not in {"strict", "crop", "pad_edge"}:
             raise ValueError("mode must be 'strict', 'crop', or 'pad_edge'")
 
-        rgb = _to_uint8_rgb(arr)
+        rgb = self._to_uint8_rgb(arr)
         h, w, _ = rgb.shape
 
         rem_h, rem_w = h % tile_size, w % tile_size
