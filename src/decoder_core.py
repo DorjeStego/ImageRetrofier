@@ -192,134 +192,136 @@ class Decoder:
 
         Image.fromarray(out, mode="RGB").save(path)
 
-def _to_uint8_rgb(arr: np.ndarray) -> np.ndarray:
-    """Coerce (H,W,3) or (H,W,3,1) into (H,W,3) uint8 RGB."""
-    if arr.ndim == 4 and arr.shape[3] == 1:
-        arr = arr[..., 0]
-    if arr.ndim != 3 or arr.shape[2] != 3:
-        raise ValueError(f"Expected (H,W,3) or (H,W,3,1), got {arr.shape}")
+    def _to_uint8_rgb(self, arr: np.ndarray) -> np.ndarray:
+        """Coerce (H,W,3) or (H,W,3,1) into (H,W,3) uint8 RGB."""
+        if arr.ndim == 4 and arr.shape[3] == 1:
+            arr = arr[..., 0]
+        if arr.ndim != 3 or arr.shape[2] != 3:
+            raise ValueError(f"Expected (H,W,3) or (H,W,3,1), got {arr.shape}")
 
-    if arr.dtype == np.uint8:
-        return arr
+        if arr.dtype == np.uint8:
+            return arr
 
-    x = arr.astype(np.float64, copy=False)
+        x = arr.astype(np.float64, copy=False)
 
-    # If values look like 0..1 floats, scale up; otherwise clip to 0..255.
-    mx = float(np.max(x)) if x.size else 0.0
-    if mx <= 1.0:
-        x = x * 255.0
+        # If values look like 0..1 floats, scale up; otherwise clip to 0..255.
+        mx = float(np.max(x)) if x.size else 0.0
+        if mx <= 1.0:
+            x = x * 255.0
 
-    return np.clip(x, 0.0, 255.0).astype(np.uint8)
+        return np.clip(x, 0.0, 255.0).astype(np.uint8)
 
-def edge_preserving_flatten(
-    arr: np.ndarray,
-    *,
-    median_size: int = 3,
-    passes: int = 1,
-) -> np.ndarray:
-    """
-    Edge-preserving-ish flattening using a median filter (fast, SBC-friendly).
+    def edge_preserving_flatten(
+        self,
+        arr: np.ndarray,
+        *,
+        median_size: int = 3,
+        passes: int = 1,
+    ) -> np.ndarray:
+        """
+        Edge-preserving-ish flattening using a median filter (fast, SBC-friendly).
 
-    median_size: odd integer (3,5,7...). Larger => flatter, more edge chunking.
-    passes: apply filter multiple times for stronger effect.
-    """
-    if median_size < 3 or median_size % 2 == 0:
-        raise ValueError("median_size must be an odd integer >= 3")
-    if passes < 1:
-        raise ValueError("passes must be >= 1")
+        median_size: odd integer (3,5,7...). Larger => flatter, more edge chunking.
+        passes: apply filter multiple times for stronger effect.
+        """
+        if median_size < 3 or median_size % 2 == 0:
+            raise ValueError("median_size must be an odd integer >= 3")
+        if passes < 1:
+            raise ValueError("passes must be >= 1")
 
-    rgb = _to_uint8_rgb(arr)
-    img = Image.fromarray(rgb, mode="RGB")
+        rgb = self._to_uint8_rgb(arr)
+        img = Image.fromarray(rgb, mode="RGB")
 
-    filt = ImageFilter.MedianFilter(size=median_size)
-    for _ in range(passes):
-        img = img.filter(filt)
+        filt = ImageFilter.MedianFilter(size=median_size)
+        for _ in range(passes):
+            img = img.filter(filt)
 
-    return np.asarray(img, dtype=np.uint8)
+        return np.asarray(img, dtype=np.uint8)
 
-def pixel_art_dominant_tile_quantize(
-    arr: np.ndarray,
-    *,
-    tile_size: int,
-    n_colours: int,
-    dither: bool,
-    mode: str = "crop",  # "crop" | "pad_edge" | "strict"
-) -> np.ndarray:
-    """
-    1) Replace each NxN tile with its DOMINANT RGB colour (most frequent pixel colour in that tile)
-    2) Quantise to n_colours (runtime)
-    3) Optional dithering (runtime)
+    def pixel_art_dominant_tile_quantize(
+        self,
+        arr: np.ndarray,
+        *,
+        tile_size: int,
+        n_colours: int,
+        dither: bool,
+        mode: str = "crop",  # "crop" | "pad_edge" | "strict"
+    ) -> np.ndarray:
+        """
+        1) Replace each NxN tile with its DOMINANT RGB colour (most frequent pixel colour in that tile)
+        2) Quantise to n_colours (runtime)
+        3) Optional dithering (runtime)
 
-    mode:
-      - "strict": require H and W divisible by tile_size
-      - "crop": drop right/bottom remainders
-      - "pad_edge": pad by repeating edge pixels to reach a multiple of tile_size
-    """
-    if tile_size <= 0:
-        raise ValueError("tile_size must be > 0")
-    if n_colours < 2 or n_colours > 256:
-        raise ValueError("n_colours must be in [2, 256]")
-    if mode not in {"strict", "crop", "pad_edge"}:
-        raise ValueError("mode must be 'strict', 'crop', or 'pad_edge'")
+        mode:
+          - "strict": require H and W divisible by tile_size
+          - "crop": drop right/bottom remainders
+          - "pad_edge": pad by repeating edge pixels to reach a multiple of tile_size
+        """
+        if tile_size <= 0:
+            raise ValueError("tile_size must be > 0")
+        if n_colours < 2 or n_colours > 256:
+            raise ValueError("n_colours must be in [2, 256]")
+        if mode not in {"strict", "crop", "pad_edge"}:
+            raise ValueError("mode must be 'strict', 'crop', or 'pad_edge'")
 
-    rgb = _to_uint8_rgb(arr)
-    h, w, _ = rgb.shape
+        rgb = _to_uint8_rgb(arr)
+        h, w, _ = rgb.shape
 
-    rem_h, rem_w = h % tile_size, w % tile_size
-    if rem_h or rem_w:
-        if mode == "strict":
-            raise ValueError(f"Image size {(h, w)} not divisible by tile_size={tile_size}")
-        elif mode == "crop":
-            h2 = h - rem_h
-            w2 = w - rem_w
-            rgb_work = rgb[:h2, :w2]
-        else:  # pad_edge
-            pad_h = (tile_size - rem_h) % tile_size
-            pad_w = (tile_size - rem_w) % tile_size
-            rgb_work = np.pad(
-                rgb,
-                ((0, pad_h), (0, pad_w), (0, 0)),
-                mode="edge",
-            )
-    else:
-        rgb_work = rgb
+        rem_h, rem_w = h % tile_size, w % tile_size
+        if rem_h or rem_w:
+            if mode == "strict":
+                raise ValueError(f"Image size {(h, w)} not divisible by tile_size={tile_size}")
+            elif mode == "crop":
+                h2 = h - rem_h
+                w2 = w - rem_w
+                rgb_work = rgb[:h2, :w2]
+            else:  # pad_edge
+                pad_h = (tile_size - rem_h) % tile_size
+                pad_w = (tile_size - rem_w) % tile_size
+                rgb_work = np.pad(
+                    rgb,
+                    ((0, pad_h), (0, pad_w), (0, 0)),
+                    mode="edge",
+                )
+        else:
+            rgb_work = rgb
 
-    h2, w2, _ = rgb_work.shape
-    ty, tx = h2 // tile_size, w2 // tile_size
+        h2, w2, _ = rgb_work.shape
+        ty, tx = h2 // tile_size, w2 // tile_size
 
-    # Reshape into tiles: (ty, tile, tx, tile, 3) -> (ty, tx, tile, tile, 3)
-    tiles = rgb_work.reshape(ty, tile_size, tx, tile_size, 3).transpose(0, 2, 1, 3, 4)
+        # Reshape into tiles: (ty, tile, tx, tile, 3) -> (ty, tx, tile, tile, 3)
+        tiles = rgb_work.reshape(ty, tile_size, tx, tile_size, 3).transpose(0, 2, 1, 3, 4)
 
-    # Compute dominant colour per tile (loop over tiles, but each tile is small).
-    # Pack RGB to 24-bit integer for fast counting.
-    small = np.empty((ty, tx, 3), dtype=np.uint8)
+        # Compute dominant colour per tile (loop over tiles, but each tile is small).
+        # Pack RGB to 24-bit integer for fast counting.
+        small = np.empty((ty, tx, 3), dtype=np.uint8)
 
-    for y in range(ty):
-        for x in range(tx):
-            t = tiles[y, x].reshape(-1, 3).astype(np.uint32, copy=False)
-            packed = (t[:, 0] << 16) | (t[:, 1] << 8) | t[:, 2]
-            vals, counts = np.unique(packed, return_counts=True)
-            dom = int(vals[np.argmax(counts)])
-            small[y, x, 0] = (dom >> 16) & 0xFF
-            small[y, x, 1] = (dom >> 8) & 0xFF
-            small[y, x, 2] = dom & 0xFF
+        for y in range(ty):
+            for x in range(tx):
+                t = tiles[y, x].reshape(-1, 3).astype(np.uint32, copy=False)
+                packed = (t[:, 0] << 16) | (t[:, 1] << 8) | t[:, 2]
+                vals, counts = np.unique(packed, return_counts=True)
+                dom = int(vals[np.argmax(counts)])
+                small[y, x, 0] = (dom >> 16) & 0xFF
+                small[y, x, 1] = (dom >> 8) & 0xFF
+                small[y, x, 2] = dom & 0xFF
 
-    # Upscale back to original working size using nearest-neighbor expansion (repeat).
-    pixelated = np.repeat(np.repeat(small, tile_size, axis=0), tile_size, axis=1)
+        # Upscale back to original working size using nearest-neighbor expansion (repeat).
+        pixelated = np.repeat(np.repeat(small, tile_size, axis=0), tile_size, axis=1)
 
-    # Quantise + optional dithering
-    img = Image.fromarray(pixelated, mode="RGB")
-    dither_flag = Image.FLOYDSTEINBERG if dither else Image.NONE
-    img_q = img.quantize(colors=n_colours, dither=dither_flag).convert("RGB")
+        # Quantise + optional dithering
+        img = Image.fromarray(pixelated, mode="RGB")
+        dither_flag = Image.FLOYDSTEINBERG if dither else Image.NONE
+        img_q = img.quantize(colors=n_colours, dither=dither_flag).convert("RGB")
 
-    out = np.asarray(img_q, dtype=np.uint8)
+        out = np.asarray(img_q, dtype=np.uint8)
 
-    # If we padded, you may want to crop back to original H,W to “fit” the input frame.
-    if mode == "pad_edge" and (out.shape[0] != h or out.shape[1] != w):
-        out = out[:h, :w]
+        # If we padded, you may want to crop back to original H,W to “fit” the input frame.
+        if mode == "pad_edge" and (out.shape[0] != h or out.shape[1] != w):
+            out = out[:h, :w]
 
-    # If we cropped, output is smaller; that’s intentional for a perfect tiling.
-    return out
+        # If we cropped, output is smaller; that’s intentional for a perfect tiling.
+        return out
 
 class JPEG:
     def __init__(self):
