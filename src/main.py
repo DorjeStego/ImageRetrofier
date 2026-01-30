@@ -5,7 +5,6 @@ from typing import Dict, Any
 
 from arg_exceptions import ArgError
 from decoder_core import Decoder
-from src.decoder_core import edge_preserving_flatten, pixel_art_dominant_tile_quantize
 
 
 def parse_args(program_info:Dict[str,str]):
@@ -101,12 +100,12 @@ def main(program_info:Dict[str,str]):
         energy_filled = decoder.tile_channel_energy_fill(tiled)
         untiled = decoder.untile_image_rgb(energy_filled)
     elif init_state.get("transform") == "pixel":
-        flat = edge_preserving_flatten(
+        flat = decoder.edge_preserving_flatten(
             arr,
             median_size=int(init_state.get("median_size")),
             passes=int(init_state.get("flatten_passes"))
         )
-        pix = pixel_art_dominant_tile_quantize(
+        pix = decoder.pixel_art_dominant_tile_quantize(
             flat,
             tile_size=int(init_state.get("tile_size")),
             n_colours=int(init_state.get("n_colours")),
