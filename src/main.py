@@ -44,7 +44,7 @@ def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParse
             f"Output type is not valid. Expected one of \"dot\", \"energy\" or \"pixel\" for --transform, got {init_state.get("output_type")}",
             parser
         )
-    if not init_state.get("tile_size") or (not (isinstance(init_state.get("tile_size"), int))) or init_state.get("tile_size") <= 0:
+    if not init_state.get("tile_size") or not isinstance(init_state.get("tile_size"), int) or init_state.get("tile_size") <= 0:
         raise ArgError(
             f"Invalid tile size argument provided. Must be positive integer. Got {init_state.get("tile_size")}",
             parser
