@@ -87,7 +87,7 @@ class Decoder:
     def untile_image_rgb(self, tiles:np.ndarray) -> np.ndarray:
         if tiles.ndim ==5:
             ty, tx, n1, n2, c = tiles.shape
-            if n1 != n2 or C != 3:
+            if n1 != n2 or c != 3:
                 raise ValueError(f"Bad tile shape {tiles.shape}")
             return tiles.transpose(0, 2, 1, 3, 4).reshape(ty * n1, tx * n1, c)
         if tiles.ndim == 6:
