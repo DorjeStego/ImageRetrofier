@@ -10,7 +10,7 @@ from decoder_core import Decoder
 def parse_args(program_info:Dict[str,str]):
     parser = build_parser(program_info)
     args = parser.parse_args()
-    print(args)
+    # print(args)
     return args, parser
 
 def build_state(args, parser):
