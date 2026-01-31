@@ -251,11 +251,11 @@ class Decoder:
             return filled0[..., None].astype(out_dtype, copy=False)
 
     def save_rgb_image(self, path:str, img: np.ndarray) -> None:
-        '''
+        """
         :param path: Output file path
         :param img: Output image as np.ndarray
         :return: None; saves to disk
-        '''
+        """
         if img.ndim == 4 and img.shape[3] == 1:
             img = img[..., 0]
         if img.ndim != 3 or img.shape[2] != 3:
