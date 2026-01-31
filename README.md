@@ -17,6 +17,7 @@ Breaking this down:
 
 ## Dependencies
 
-* Pillow - `pip3 install pillow`
+* Pillow - `pip3 install pillow` - for image manipulation
+* numpy - `pip3 install numpy` - for the complex mathematical operations on images
 
 Note that this was written and tested on the Python 3.13 interpreter.
