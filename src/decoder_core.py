@@ -36,13 +36,13 @@ class Decoder:
         return arr[..., np.newaxis]
 
     def tile_image_rgb(self, arr:np.ndarray, n:int, mode:str="strict"):
-        '''
+        """
         Convert an image array into NxN tiles that perfectly tile the image.
         :param arr: (H,W,3 or (H,W,3,1)
         :param n: tile size (square, NxN)
         :param mode: strict|crop|pad_edge
         :return: tiles: (tiles_y, tiles_x, N, N, 3)
-        '''
+        """
         if arr.ndim not in (3, 4):
             raise ValueError(f"Expected (H,W,3 or (H,W,3,1), got shape {arr.shape}")
         if arr.shape[2] != 3:
