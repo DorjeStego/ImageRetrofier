@@ -5,6 +5,9 @@ from typing import Any, Dict
 import numpy as np
 import io
 from PIL import Image, ImageFilter
+from numpy import dtype, ndarray
+from numpy.lib._stride_tricks_impl import _ScalarT
+
 from decoder_exceptions import InvalidFiletypeError
 
 class Decoder:
@@ -20,7 +23,7 @@ class Decoder:
             raise InvalidFiletypeError
         return
 
-    def _type_image(self, image_bytes:bytes):
+    def _type_image(self, image_bytes:bytes) -> None:
         if image_bytes.startswith(b"\xFF\xD8\xFF"): # JPEG
             self.image_type = "JPG"
         elif image_bytes.startswith(b"b\x89PNG\r\n\x1a\n"): # PNG
@@ -29,13 +32,13 @@ class Decoder:
             self.image_type = "BMP"
         return
 
-    def decode_image_to_rows(self, dtype=np.uint8):
+    def decode_image_to_rows(self, dtype=np.uint8) -> np.ndarray:
         with Image.open(io.BytesIO(self._image_bytes)) as img:
             rgb = img.convert("RGB") # 3 channels
             arr = np.asarray(rgb, dtype=dtype)
         return arr[..., np.newaxis]
 
-    def tile_image_rgb(self, arr:np.ndarray, n:int, mode:str="strict"):
+    def tile_image_rgb(self, arr:np.ndarray, n:int, mode:str="strict") -> np.ndarray:
         """
         Convert an image array into NxN tiles that perfectly tile the image.
         :param arr: (H,W,3 or (H,W,3,1)
@@ -124,7 +127,7 @@ class Decoder:
         else:
             flat = t.reshape(t.shape[0], t.shape[1], -1)
             dot = np.einsum("...k,...k->...", flat, flat)
-            filled = np.broadcast_to(dot[...,None, None, None, None], tiles.shape)
+            filled: ndarray[tuple[Any, ...], dtype[_ScalarT]] | ndarray[tuple[Any, ...], dtype[Any]] = np.broadcast_to(dot[...,None, None, None, None], tiles.shape)
             return filled.astype(out_dtype, copy=False)
 
     def _reduce_rows_dotproduct_divide_conquer(self, tile: np.ndarray) -> np.ndarray:
