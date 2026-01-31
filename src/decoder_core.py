@@ -6,7 +6,6 @@ import numpy as np
 import io
 from PIL import Image, ImageFilter
 from numpy import dtype, ndarray
-from numpy.lib._stride_tricks_impl import _ScalarT
 
 from decoder_exceptions import InvalidFiletypeError
 
@@ -127,7 +126,7 @@ class Decoder:
         else:
             flat = t.reshape(t.shape[0], t.shape[1], -1)
             dot = np.einsum("...k,...k->...", flat, flat)
-            filled: ndarray[tuple[Any, ...], dtype[_ScalarT]] | ndarray[tuple[Any, ...], dtype[Any]] = np.broadcast_to(dot[...,None, None, None, None], tiles.shape)
+            filled = np.broadcast_to(dot[..., None, None, None], tiles.shape)
             return filled.astype(out_dtype, copy=False)
 
     def _reduce_rows_dotproduct_divide_conquer(self, tile: np.ndarray) -> np.ndarray:
