@@ -19,7 +19,8 @@ def build_state(args: Namespace, parser: ArgumentParser) -> Dict[str,str|int|Non
     if not args.output_filename:
         raise ArgError("No output file in arguments", parser)
     if not args.verbose:
-        print("Not verbose")
+        pass
+        # print("Not verbose")
     return { "input" : args.input_filename,
               "output" : args.output_filename,
               "verbose": True if getattr(args, "verbose", None) is not None else False,
