@@ -103,6 +103,8 @@ def main(program_info:Dict[str,str]):
     if init_state.get("transform") == "dot":
         dot_filled = decoder.tile_dot_fill(tiled)
         untiled = decoder.untile_image_rgb(dot_filled)
+        decoder.save_rgb_image_per_channel(init_state.get("output"), untiled)
+        return
     elif init_state.get("transform") == "energy":
         energy_filled = decoder.tile_channel_energy_fill(tiled)
         untiled = decoder.untile_image_rgb(energy_filled)
@@ -122,16 +124,14 @@ def main(program_info:Dict[str,str]):
             dither=bool(init_state.get("dither")),
             mode="crop")
         decoder.save_rgb_image_per_channel(init_state.get("output"), pix)
-    if untiled is not None:
-        decoder.save_rgb_image_per_channel(init_state.get("output"), untiled)
-    elif pix is not None:
-        pass
-    else:
-        raise ArgError(f"Neither untiled nor pix are not None", parser)
+    assert pix is not None or untiled is not None
     return
 
 if __name__ == '__main__':
     prog_info = {"program_name" : "ImageRetrofier",
     "description" : "Converts images to ASCII or pixel art.",
     "epilog": ""}
-    main(prog_info)
+    try:
+        main(prog_info)
+    except AssertionError as e:
+        raise AssertionError(f"Neither untiled nor pix are not None; program ending anomalously, no image generated.", e)
