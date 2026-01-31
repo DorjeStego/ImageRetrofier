@@ -1,19 +1,19 @@
 import os
 import argparse
-from argparse import ArgumentParser
-from typing import Dict, Any
+from argparse import ArgumentParser, Namespace
+from typing import Dict, Any, Tuple
 
 from arg_exceptions import ArgError
 from decoder_core import Decoder
 
 
-def parse_args(program_info:Dict[str,str]):
+def parse_args(program_info:Dict[str,str]) -> Tuple[Namespace, ArgumentParser]:
     parser = build_parser(program_info)
     args = parser.parse_args()
     # print(args)
     return args, parser
 
-def build_state(args, parser):
+def build_state(args: Namespace, parser: ArgumentParser) -> Dict[str,str|int|None]:
     if not args.input_filename:
         raise ArgError("No input file in arguments", parser)
     if not args.output_filename:
@@ -30,7 +30,7 @@ def build_state(args, parser):
               "median_size": int(args.flatten_ms) if getattr(args, "median_size", None) is not None else 3,
               "dither": args.dither if getattr(args, "dither", None) is not None else None }
 
-def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParser):
+def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParser) -> None:
     if not init_state.get("input"):
         raise ArgError(
             f"No input filename argument provided.", parser
@@ -73,7 +73,7 @@ def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParse
         print("Validated input successfully. This does not mean filenames have been resolved.")
     return
 
-def build_parser(program_info:Dict[str,str]):
+def build_parser(program_info:Dict[str,str]) -> ArgumentParser:
     parser = argparse.ArgumentParser(
         prog=program_info.get("program_name", None),
         description=program_info.get("description", None),
@@ -89,7 +89,7 @@ def build_parser(program_info:Dict[str,str]):
     parser.add_argument("--dither", "-d", default="none", help="Enable dithering on the output image.")
     return parser
 
-def main(program_info:Dict[str,str]):
+def main(program_info:Dict[str,str]) -> None:
     args, parser = parse_args(program_info)
     init_state = build_state(args, parser)
     validate_state(init_state, parser)
