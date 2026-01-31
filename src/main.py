@@ -27,7 +27,8 @@ def build_state(args, parser):
               "tile_size": int(args.tile_size) if getattr(args, "tile_size", None) is not None else 10,
               "n_colours": int(args.n_colours) if getattr(args, "n_colours", None) is not None else 32,
               "flatten_passes": int(args.flatten_passes) if getattr(args, "flatten_passes", None) is not None else 1,
-              "median_size": int(args.flatten_ms) if getattr(args, "median_size", None) is not None else 3 }
+              "median_size": int(args.flatten_ms) if getattr(args, "median_size", None) is not None else 3,
+              "dither": args.dither if getattr(args, "dither", None) is not None else None }
 
 def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParser):
     if not init_state.get("input"):
@@ -63,6 +64,11 @@ def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParse
             f"Invalid median_size argument provided. Must be positive integer. Got {init_state.get("median_size")}",
             parser
         )
+    if not (init_state.get("dither") or not isinstance(init_state.get("dither"), int) or \
+            init_state.get("dither") in ("true", "none")): # True is a placeholder until implementing other methods.
+        raise ArgError(
+            f"Invalid dithering argument. Accepts true or none. Got {init_state.get("dither")}", parser
+        )
     if init_state.get("verbose") == True:
         print("Validated input successfully. This does not mean filenames have been resolved.")
     return
@@ -80,6 +86,7 @@ def build_parser(program_info:Dict[str,str]):
     parser.add_argument("--n-colours", "-c", default="32", help="How many colours should the colour palate be constrained to? Defaults to 32."),
     parser.add_argument("--flatten-passes", "-p", default="6", help="How many passes should the flattener make?")
     parser.add_argument("--flatten-ms", "-m", default="3", help="How many adjacent tiles should the flattener look at? Defaults to 3.")
+    parser.add_argument("--dither", "-d", default="none", help="Enable dithering on the output image.")
     return parser
 
 def main(program_info:Dict[str,str]):
@@ -112,7 +119,7 @@ def main(program_info:Dict[str,str]):
             flat,
             tile_size=int(init_state.get("tile_size")),
             n_colours=int(init_state.get("n_colours")),
-            dither=True,
+            dither=bool(init_state.get("dither")),
             mode="crop")
         decoder.save_rgb_image_per_channel(init_state.get("output"), pix)
     if untiled is not None:
