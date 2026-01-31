@@ -212,7 +212,7 @@ class Decoder:
             return out
 
         else:
-            ty, tx, n, n2, c, B = t.shape
+            ty, tx, n, n2, c, b = t.shape
             if n != n2:
                 raise ValueError("Tiles must be NxN")
 
