@@ -334,9 +334,9 @@ class Decoder:
         rgb = self._to_uint8_rgb(arr)
         img = Image.fromarray(rgb, mode="RGB")
 
-        filt = ImageFilter.MedianFilter(size=median_size)
+        filter = ImageFilter.MedianFilter(size=median_size)
         for _ in range(passes):
-            img = img.filter(filt)
+            img = img.filter(filter)
 
         return np.asarray(img, dtype=np.uint8)
 
