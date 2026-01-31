@@ -98,12 +98,12 @@ class Decoder:
         raise ValueError(f"Expected 5D or 6D tiles, got {tiles.shape}")
 
     def tile_dot_fill(self, tiles:np.ndarray, out_dtype=np.float32) -> np.ndarray:
-        '''
+        """
 
         :param tiles: ty, tx, n, n, 3 or ty, tx, n, n, 3, 1
         :param out_dtype: Usually float32 for reconstructing image.
         :return: tiles of the same sape, where each tile is filled with(v.v) for that tile.
-        '''
+        """
         if tiles.ndim not in (5, 6):
             raise ValueError(f"Expected 5D or 6D tiles, got {tiles.shape}")
         if tiles.shape[4] != 3:
