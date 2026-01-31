@@ -225,7 +225,6 @@ class Decoder:
 
     def tile_channel_energy_fill(self, tiles:np.ndarray, out_dtype=np.float32) -> np.ndarray:
         """
-
         :param tiles: (ty,tx,n,n,3) or (ty,tx,n,n,3,1)
         :param out_dtype: default np.float32
         :return: same shape filled per tile with [R_energy, G_energy, B_energy]
