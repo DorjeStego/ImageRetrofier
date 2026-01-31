@@ -120,7 +120,7 @@ def main(program_info:Dict[str,str]) -> None:
         if init_state.get("transform") == "pixel-dot":
             tiled = decoder.tile_image_rgb(arr, int(init_state.get("tile_size")), "crop")
             arr = decoder.tile_channel_energy_fill_divconq_rows(tiled)
-            arr = decoder.untile_image_rgb(tiled)
+            # arr = decoder.untile_image_rgb(tiled)
         flat = decoder.edge_preserving_flatten(
             arr,
             median_size=int(init_state.get("median_size")),
