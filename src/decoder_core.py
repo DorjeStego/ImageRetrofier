@@ -127,6 +127,102 @@ class Decoder:
             filled = np.broadcast_to(dot[...,None, None, None, None], tiles.shape)
             return filled.astype(out_dtype, copy=False)
 
+    def _reduce_rows_dotproduct_divide_conquer(self, tile: np.ndarray) -> np.ndarray:
+        """
+        :param tile (N, N, 3) float64
+        :return: (3,) float64  -- final per-channel value after row reduction
+        """
+        n = tile.shape[0]
+        rows = tile  # (R, N, 3) initially R=N
+
+        first_pass = True
+        while rows.shape[0] > 1:
+            r = rows.shape[0]
+
+            # Pair up neighbouring rows: (0,1), (2,3), ...
+            a = rows[0:r - (r % 2):2]  # (P, N, 3)
+            b = rows[1:r - (r % 2):2]  # (P, N, 3)
+
+            # Per-pair, per-channel dot across columns -> (P, 3)
+            dots = np.einsum("pnc,pnc->pc", a, b)
+
+            # Turn each scalar dot (per channel) into a full row vector of length N
+            # => (P, N, 3)
+            new_rows = np.broadcast_to(dots[:, None, :], (dots.shape[0], n, 3)).copy()
+
+            # Odd leftover handling: on the FIRST pass, combine leftover with its neighbour dot-row
+            if (r % 2) == 1:
+                leftover = rows[-1]  # (N, 3)
+
+                if first_pass:
+                    # "taken as the dot product against the neighbouring dot product row after the first pass"
+                    # Neighbour is the last produced row (from pairing R-3 with R-2).
+                    if new_rows.shape[0] == 0:
+                        # Degenerate case: only 1 row existed (won't happen with while), but keep safe.
+                        new_rows = leftover[None, :, :]
+                    else:
+                        neighbour = new_rows[-1]  # (N, 3), constant-per-channel row
+
+                        # Dot neighbour with leftover -> (3,)
+                        fix = np.einsum("nc,nc->c", neighbour, leftover)
+
+                        # Replace last produced row with the corrected dot-row
+                        new_rows[-1] = np.broadcast_to(fix[None, :], (n, 3))
+                else:
+                    # After first pass, simplest consistent behaviour is: fold leftover into last row again.
+                    # (You can change this rule if you want different adjacency semantics.)
+                    if new_rows.shape[0] == 0:
+                        new_rows = leftover[None, :, :]
+                    else:
+                        neighbour = new_rows[-1]
+                        fix = np.einsum("nc,nc->c", neighbour, leftover)
+                        new_rows[-1] = np.broadcast_to(fix[None, :], (n, 3))
+
+            rows = new_rows
+            first_pass = False
+
+        # rows is now (1, N, 3). Usually constant across columns; take mean to be safe.
+        return rows[0].mean(axis=0)
+
+    def tile_channel_energy_fill_divconq_rows(self, tiles: np.ndarray, out_dtype=np.float32) -> np.ndarray:
+        """
+        :param tiles: (ty,tx,N,N,3) or (ty,tx,N,N,3,1)
+        :return: same shape, filled per tile with the final per-channel reduction value.
+        """
+        if tiles.ndim not in (5, 6):
+            raise ValueError(f"Expected 5D or 6D tiles, got {tiles.shape}")
+        if tiles.shape[4] != 3:
+            raise ValueError(f"Expected RGB at axis 4, got {tiles.shape}")
+        if tiles.ndim == 6 and tiles.shape[5] != 1:
+            raise ValueError("If 6D, expected trailing batch dim of 1")
+
+        has_batch = (tiles.ndim == 6)
+        t = tiles.astype(np.float64, copy=False)
+
+        if not has_batch:
+            ty, tx, n, n2, c = t.shape
+            if n != n2:
+                raise ValueError("Tiles must be NxN")
+
+            out = np.empty((ty, tx, n, n, 3), dtype=out_dtype)
+            for y in range(ty):
+                for x in range(tx):
+                    v = self._reduce_rows_dotproduct_divide_conquer(t[y, x])  # (3,)
+                    out[y, x] = np.broadcast_to(v[None, None, :], (n, n, 3))
+            return out
+
+        else:
+            ty, tx, n, n2, c, B = t.shape
+            if n != n2:
+                raise ValueError("Tiles must be NxN")
+
+            out = np.empty((ty, tx, n, n, 3, 1), dtype=out_dtype)
+            for y in range(ty):
+                for x in range(tx):
+                    v = self._reduce_rows_dotproduct_divide_conquer(t[y, x, :, :, :, 0])  # (3,)
+                    out[y, x, :, :, :, 0] = np.broadcast_to(v[None, None, :], (n, n, 3))
+            return out
+
     def tile_channel_energy_fill(self, tiles:np.ndarray, out_dtype=np.float32) -> np.ndarray:
         '''
 
@@ -137,13 +233,20 @@ class Decoder:
         has_batch = (tiles.ndim == 6)
         t = tiles.astype(np.float64, copy=False)
 
+        # TODO: Add multiple mathematical pathways - use comments as starting point.
         if not has_batch:
+            # area = tiles.shape[-4] * tiles.shape[-3]
             e = np.einsum("...ijc,...ijc->...c", t, t)
+            # rms = np.sqrt(e / area)
+            # mean = np.mean(t, axis=(-4, -3))
             filled = np.broadcast_to(e[..., None, None, :], tiles.shape)
             return filled.astype(out_dtype, copy=False)
         else:
             t0 = t[..., 0]
+            # area = tiles.shape[-4] * tiles.shape[-3]
             e = np.einsum("...ijc,...ijc->...c", t0, t0)
+            # rms = np.sqrt(e / area)
+            # mean = np.mean(t, axis=(-4, -3))
             filled0 = np.broadcast_to(e[..., None, None, :], t0.shape)
             return filled0[..., None].astype(out_dtype, copy=False)
 

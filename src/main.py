@@ -38,9 +38,9 @@ def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParse
         raise ArgError(
             f"No output filename argument provided.", parser
         )
-    if init_state.get("transform") not in {"dot", "energy", "pixel"}:
+    if init_state.get("transform") not in {"dot", "energy", "pixel", "pixel-dot"}:
         raise ArgError(
-            f"Output type is not valid. Expected one of \"dot\", \"energy\" or \"pixel\" for --transform, got {init_state.get("output_type")}",
+            f"Output type is not valid. Expected one of \"dot\", \"energy\", \"pixel\" or \"pixel-dot\" for --transform, got {init_state.get("output_type")}",
             parser
         )
     if not init_state.get("tile_size") or not isinstance(init_state.get("tile_size"), int) or init_state.get("tile_size") <= 0:
@@ -99,7 +99,10 @@ def main(program_info:Dict[str,str]):
     elif init_state.get("transform") == "energy":
         energy_filled = decoder.tile_channel_energy_fill(tiled)
         untiled = decoder.untile_image_rgb(energy_filled)
-    elif init_state.get("transform") == "pixel":
+    elif init_state.get("transform") == "pixel" or init_state.get("transform") == "pixel-dot":
+        if init_state.get("transform") == "pixel-dot":
+            tiled = decoder.tile_channel_energy_fill_divconq_rows(tiled)
+            arr = decoder.untile_image_rgb(tiled)
         flat = decoder.edge_preserving_flatten(
             arr,
             median_size=int(init_state.get("median_size")),
