@@ -15,9 +15,9 @@ def parse_args(program_info:Dict[str,str]):
 
 def build_state(args, parser):
     if not args.input_filename:
-        raise ArgError("No input file", parser)
+        raise ArgError("No input file in arguments", parser)
     if not args.output_filename:
-        raise ArgError("No output file", parser)
+        raise ArgError("No output file in arguments", parser)
     if not args.verbose:
         print("Not verbose")
     return { "input" : args.input_filename,
