@@ -3,7 +3,7 @@
 **Please note**: Only JPG files are currently tested and known to be working. There are known issues with using png files. You will need to convert png to jpg first before using this tool at present.
 
 ## Example commands
-* `python3 /src/main.py --input-filename "/home/dorje/Public/retrofier/some-image.jpg" --output-filename "/home/dorje/Public/retrofier/output.jpg" --tile-size 4 --transform pixel --n-colours 16 --flatten-passes 6 --flatten-ms 5 --verbose`
+* `python3 src/main.py --input-filename "/home/dorje/Public/retrofier/some-image.jpg" --output-filename "/home/dorje/Public/retrofier/output.jpg" --tile-size 4 --transform pixel --n-colours 16 --flatten-passes 6 --flatten-ms 5 --verbose`
 
 Breaking this down:
 
