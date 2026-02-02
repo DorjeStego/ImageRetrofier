@@ -25,7 +25,7 @@ class Decoder:
     def _type_image(self, image_bytes:bytes) -> None:
         if image_bytes.startswith(b"\xFF\xD8\xFF"): # JPEG
             self.image_type = "JPG"
-        elif image_bytes.startswith(b"b\x89PNG\r\n\x1a\n"): # PNG
+        elif image_bytes.startswith(b"\x89PNG\r\n\x1a\n"): # PNG
             self.image_type = "PNG"
         elif image_bytes.startswith(b"BM"): # Bitmap
             self.image_type = "BMP"
@@ -129,6 +129,38 @@ class Decoder:
             filled = np.broadcast_to(dot[..., None, None, None], tiles.shape)
             return filled.astype(out_dtype, copy=False)
 
+    def _reduce_rows_mean_divide_conquer(self, tile: np.ndarray) -> np.ndarray:
+        """
+        :param tile: (N, N, 3) float64
+        :returns: (3,) float64  - per-channel mean over the whole tile, using pairwise (divide&conquer) row reduction
+        """
+        n = tile.shape[0]
+        # First reduce columns: sum across columns -> (N, 3) row sums
+        rows = tile.sum(axis=1)  # (N, 3)
+
+        first_pass = True
+        while rows.shape[0] > 1:
+            r = rows.shape[0]
+
+            a = rows[0:r - (r % 2):2]  # (P, 3)
+            b = rows[1:r - (r % 2):2]  # (P, 3)
+
+            new_rows = a + b  # (P, 3)
+
+            if (r % 2) == 1:
+                leftover = rows[-1]  # (3,)
+                if new_rows.shape[0] == 0:
+                    new_rows = leftover[None, :]
+                else:
+                    # Fold leftover into the last produced row (same adjacency idea as your dot reducer)
+                    new_rows[-1] = new_rows[-1] + leftover
+
+            rows = new_rows
+            first_pass = False
+
+        total = rows[0]  # (3,) sum over all pixels in the tile
+        return total / float(n * n)
+
     def _reduce_rows_dotproduct_divide_conquer(self, tile: np.ndarray) -> np.ndarray:
         """
         :param tile (N, N, 3) float64
@@ -186,9 +218,11 @@ class Decoder:
         # rows is now (1, N, 3). Usually constant across columns; take mean to be safe.
         return rows[0].mean(axis=0)
 
-    def tile_channel_energy_fill_divconq_rows(self, tiles: np.ndarray, out_dtype=np.float32) -> np.ndarray:
+    def tile_channel_energy_fill_divconq_rows(self, tiles: np.ndarray, out_dtype=np.float32, mode:str="mean") -> np.ndarray:
         """
         :param tiles: (ty,tx,N,N,3) or (ty,tx,N,N,3,1)
+        :param out_dtype: The data type the output should be formatted in. numpy float32 (np.float32) by default.
+        :param mode: String parameter. The operation mode. Should be mean or dot. Default is mean.
         :return: same shape, filled per tile with the final per-channel reduction value.
         """
         if tiles.ndim not in (5, 6):
@@ -209,7 +243,13 @@ class Decoder:
             out = np.empty((ty, tx, n, n, 3), dtype=out_dtype)
             for y in range(ty):
                 for x in range(tx):
-                    v = self._reduce_rows_dotproduct_divide_conquer(t[y, x])  # (3,)
+                    if mode == "mean":
+                        v = self._reduce_rows_mean_divide_conquer(t[y, x])  # (3,)
+                    elif mode == "dot":
+                        v = self._reduce_rows_dotproduct_divide_conquer(t[y, x])
+                    else:
+                        raise ValueError("Mode must be \"dot\" or \"mean\"")
+                    v = np.rint(v).clip(0, 255)
                     out[y, x] = np.broadcast_to(v[None, None, :], (n, n, 3))
             return out
 
@@ -221,7 +261,10 @@ class Decoder:
             out = np.empty((ty, tx, n, n, 3, 1), dtype=out_dtype)
             for y in range(ty):
                 for x in range(tx):
-                    v = self._reduce_rows_dotproduct_divide_conquer(t[y, x, :, :, :, 0])  # (3,)
+                    if mode == "mean":
+                        v = self._reduce_rows_mean_divide_conquer(t[y, x, :, :, :, 0])  # (3,)
+                    elif mode == "dot":
+                        v = self._reduce_rows_dotproduct_divide_conquer(t[y, x])
                     out[y, x, :, :, :, 0] = np.broadcast_to(v[None, None, :], (n, n, 3))
             return out
 

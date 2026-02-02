@@ -23,3 +23,8 @@ Breaking this down:
 * numpy - `pip3 install numpy` - for the complex mathematical operations on images
 
 Note that this was written and tested on the Python 3.13 interpreter.
+
+## Changelog
+
+* Added version argument.
+* Corrected png input file processing crash issue.
