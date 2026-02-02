@@ -25,7 +25,7 @@ class Decoder:
     def _type_image(self, image_bytes:bytes) -> None:
         if image_bytes.startswith(b"\xFF\xD8\xFF"): # JPEG
             self.image_type = "JPG"
-        elif image_bytes.startswith(b"b\x89PNG\r\n\x1a\n"): # PNG
+        elif image_bytes.startswith(b"\x89PNG\r\n\x1a\n"): # PNG
             self.image_type = "PNG"
         elif image_bytes.startswith(b"BM"): # Bitmap
             self.image_type = "BMP"
