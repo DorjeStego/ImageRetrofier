@@ -167,6 +167,12 @@ class Decoder:
         :return: (3,) float64  -- final per-channel value after row reduction
         """
         n = tile.shape[0]
+        # Keep each dot-reduction step in display range by normalising by
+        # the maximum possible per-channel row-dot: n * 255 * 255.
+        # Multiplying by 255 yields an output bounded by [0, 255].
+        # Use a small gain (>1) to brighten the result and reduce "too dark" output.
+        dot_gain = 1.35
+        dot_scale = (float(n) * 255.0) / dot_gain
         rows = tile  # (R, N, 3) initially R=N
 
         first_pass = True
@@ -178,7 +184,7 @@ class Decoder:
             b = rows[1:r - (r % 2):2]  # (P, N, 3)
 
             # Per-pair, per-channel dot across columns -> (P, 3)
-            dots = np.einsum("pnc,pnc->pc", a, b)
+            dots = np.einsum("pnc,pnc->pc", a, b) / dot_scale
 
             # Turn each scalar dot (per channel) into a full row vector of length N
             # => (P, N, 3)
@@ -198,7 +204,7 @@ class Decoder:
                         neighbour = new_rows[-1]  # (N, 3), constant-per-channel row
 
                         # Dot neighbour with leftover -> (3,)
-                        fix = np.einsum("nc,nc->c", neighbour, leftover)
+                        fix = np.einsum("nc,nc->c", neighbour, leftover) / dot_scale
 
                         # Replace last produced row with the corrected dot-row
                         new_rows[-1] = np.broadcast_to(fix[None, :], (n, 3))
@@ -209,7 +215,7 @@ class Decoder:
                         new_rows = leftover[None, :, :]
                     else:
                         neighbour = new_rows[-1]
-                        fix = np.einsum("nc,nc->c", neighbour, leftover)
+                        fix = np.einsum("nc,nc->c", neighbour, leftover) / dot_scale
                         new_rows[-1] = np.broadcast_to(fix[None, :], (n, 3))
 
             rows = new_rows
@@ -264,7 +270,10 @@ class Decoder:
                     if mode == "mean":
                         v = self._reduce_rows_mean_divide_conquer(t[y, x, :, :, :, 0])  # (3,)
                     elif mode == "dot":
-                        v = self._reduce_rows_dotproduct_divide_conquer(t[y, x])
+                        v = self._reduce_rows_dotproduct_divide_conquer(t[y, x, :, :, :, 0])
+                    else:
+                        raise ValueError("Mode must be \"dot\" or \"mean\"")
+                    v = np.rint(v).clip(0, 255)
                     out[y, x, :, :, :, 0] = np.broadcast_to(v[None, None, :], (n, n, 3))
             return out
 

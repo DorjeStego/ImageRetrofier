@@ -56,9 +56,9 @@ def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParse
         raise ArgError(
             f"Invalid tile method argument provided. Must be \"mean\" or \"dot\"", parser
         )
-    if init_state.get("energy_method") not in {"e", "rms", "mean", "var"}:
+    if init_state.get("energy_method") not in {"e", "rms", "mean", "var", "dot"}:
         raise ArgError(
-            f"Invalid energy_method argument provided. Must be one of \"e\", \"rms\", \"mean\", or \"var\". Got {init_state.get('energy_method')}",
+            f"Invalid energy_method argument provided. Must be one of \"e\", \"rms\", \"mean\", \"var\", or \"dot\". Got {init_state.get('energy_method')}",
             parser
         )
     if not init_state.get("n_colours") or not isinstance(init_state.get("n_colours"), int) or init_state.get("n_colours") <= 0:
@@ -96,7 +96,7 @@ def build_parser(program_info:Dict[str,str]) -> ArgumentParser:
     parser.add_argument("--transform", "-t", help="The type of image transformation to use. Current options are dot, energy and pixel.")
     parser.add_argument("--tile-size", "-ts", default="10", help="How many pixels (x,y) per tile? Defaults to 10.")
     parser.add_argument("--tile-method", "-tm", default="mean", help="The mathematical method for generating tiles. Should be mean or dot.")
-    parser.add_argument("--energy-method", "-em", default="e", help="Energy metric for --transform energy. One of: e, rms, mean, var.")
+    parser.add_argument("--energy-method", "-em", default="e", help="Energy metric for --transform energy and pixel-dot prepass. One of: e, rms, mean, var, dot.")
     parser.add_argument("--n-colours", "-c", default="32", help="How many colours should the colour palate be constrained to? Defaults to 32."),
     parser.add_argument("--flatten-passes", "-p", default="6", help="How many passes should the flattener make?")
     parser.add_argument("--flatten-ms", "-m", default="3", help="How many adjacent tiles should the flattener look at? Defaults to 3.")
@@ -130,8 +130,16 @@ def main(program_info:Dict[str,str]) -> None:
     elif init_state.get("transform") == "pixel" or init_state.get("transform") == "pixel-dot":
         if init_state.get("transform") == "pixel-dot":
             tiled = decoder.tile_image_rgb(arr, int(init_state.get("tile_size")), "crop")
-            arr = decoder.tile_channel_energy_fill_divconq_rows(tiled)
-            # arr = decoder.untile_image_rgb(tiled)
+            energy_method = init_state.get("energy_method")
+            if energy_method in {"mean", "dot"}:
+                energy_filled = decoder.tile_channel_energy_fill_divconq_rows(tiled, mode=energy_method)
+                arr = decoder.untile_image_rgb(energy_filled)
+            else:
+                energy_filled = decoder.tile_channel_energy_fill(
+                    tiled,
+                    method=energy_method
+                )
+                arr = decoder.untile_image_rgb(energy_filled)
         flat = decoder.edge_preserving_flatten(
             arr,
             median_size=int(init_state.get("median_size")),
