@@ -21,6 +21,14 @@ def build_state(args: Namespace, parser: ArgumentParser) -> Dict[str,str|int|Non
     if not args.verbose:
         pass
         # print("Not verbose")
+    dither_raw = str(args.dither).strip().lower() if getattr(args, "dither", None) is not None else "none"
+    if dither_raw in {"true", "1", "yes", "on"}:
+        dither = True
+    elif dither_raw in {"none", "false", "0", "no", "off"}:
+        dither = False
+    else:
+        dither = None
+
     return { "input" : args.input_filename,
               "output" : args.output_filename,
               "verbose": True if getattr(args, "verbose", None) is not None else False,
@@ -31,7 +39,8 @@ def build_state(args: Namespace, parser: ArgumentParser) -> Dict[str,str|int|Non
               "n_colours": int(args.n_colours) if getattr(args, "n_colours", None) is not None else 32,
               "flatten_passes": int(args.flatten_passes) if getattr(args, "flatten_passes", None) is not None else 1,
               "median_size": int(args.flatten_ms) if getattr(args, "median_size", None) is not None else 3,
-              "dither": args.dither if getattr(args, "dither", None) is not None else None }
+              "dither": dither,
+              "dither_raw": args.dither if getattr(args, "dither", None) is not None else "none" }
 
 def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParser) -> None:
     if not init_state.get("input"):
@@ -76,10 +85,10 @@ def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParse
             f"Invalid median_size argument provided. Must be positive integer. Got {init_state.get("median_size")}",
             parser
         )
-    if not (init_state.get("dither") or not isinstance(init_state.get("dither"), int) or \
-            init_state.get("dither") in ("true", "none")): # True is a placeholder until implementing other methods.
+    if not isinstance(init_state.get("dither"), bool):
         raise ArgError(
-            f"Invalid dithering argument. Accepts true or none. Got {init_state.get("dither")}", parser
+            f"Invalid dithering argument. Accepts true/false/none (also yes/no/on/off/1/0). Got {init_state.get('dither_raw')}",
+            parser
         )
     if init_state.get("verbose") == True:
         print("Validated input successfully. This does not mean filenames have been resolved.")
@@ -100,7 +109,7 @@ def build_parser(program_info:Dict[str,str]) -> ArgumentParser:
     parser.add_argument("--n-colours", "-c", default="32", help="How many colours should the colour palate be constrained to? Defaults to 32."),
     parser.add_argument("--flatten-passes", "-p", default="6", help="How many passes should the flattener make?")
     parser.add_argument("--flatten-ms", "-m", default="3", help="How many adjacent tiles should the flattener look at? Defaults to 3.")
-    parser.add_argument("--dither", "-d", default="none", help="Enable dithering on the output image.")
+    parser.add_argument("--dither", "-d", default="none", help="Enable dithering on the output image. Accepts true/false/none (also yes/no/on/off/1/0).")
     parser.add_argument("--version", action="version", version="ImageRetrofier 0.2.0")
     return parser
 
@@ -149,7 +158,7 @@ def main(program_info:Dict[str,str]) -> None:
             flat,
             tile_size=int(init_state.get("tile_size")),
             n_colours=int(init_state.get("n_colours")),
-            dither=bool(init_state.get("dither")),
+            dither=init_state.get("dither"),
             mode="crop")
         decoder.save_rgb_image_per_channel(init_state.get("output"), pix)
     assert pix is not None or untiled is not None
