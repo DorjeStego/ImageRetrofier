@@ -272,31 +272,37 @@ class Decoder:
         """
         :param tiles: (ty,tx,n,n,3) or (ty,tx,n,n,3,1)
         :param out_dtype: default np.float32
-        :param method: Set the mathematical method for calculating tile energy
-        :return: same shape filled per tile with [R_energy, G_energy, B_energy]
+        :param method: "e" | "rms" | "mean" | "var"
+        :return: same shape filled per tile with [R,G,B] metric values
         """
+        if tiles.ndim not in (5, 6):
+            raise ValueError(f"Expected 5D or 6D tiles, got {tiles.shape}")
+        if tiles.shape[4] != 3:
+            raise ValueError(f"Expected RGB at axis 4, got {tiles.shape}")
+        if tiles.ndim == 6 and tiles.shape[5] != 1:
+            raise ValueError("If 6D, expected trailing batch dim of 1")
+
         has_batch = (tiles.ndim == 6)
         t = tiles.astype(np.float64, copy=False)
+        x = t[..., 0] if has_batch else t  # (..., n, n, 3)
+        area = x.shape[-3] * x.shape[-2]
 
-        # TODO: Add multiple mathematical pathways - use comments as starting point.
-        if not has_batch:
-            e = None
-            # area = tiles.shape[-4] * tiles.shape[-3]
-            if method == "e":
-                e = np.einsum("...ijc,...ijc->...c", t, t)
-            # rms = np.sqrt(e / area)
-            # mean = np.mean(t, axis=(-4, -3))
-            if method == "e":
-                filled = np.broadcast_to(e[..., None, None, :], tiles.shape)
-            return filled.astype(out_dtype, copy=False)
+        if method == "e":
+            v = np.einsum("...ijc,...ijc->...c", x, x)
+        elif method == "rms":
+            e = np.einsum("...ijc,...ijc->...c", x, x)
+            v = np.sqrt(e / area)
+        elif method == "mean":
+            v = np.mean(x, axis=(-3, -2))
+        elif method == "var":
+            v = np.var(x, axis=(-3, -2))
         else:
-            t0 = t[..., 0]
-            # area = tiles.shape[-4] * tiles.shape[-3]
-            e = np.einsum("...ijc,...ijc->...c", t0, t0)
-            # rms = np.sqrt(e / area)
-            # mean = np.mean(t, axis=(-4, -3))
-            filled0 = np.broadcast_to(e[..., None, None, :], t0.shape)
+            raise ValueError("method must be one of: 'e', 'rms', 'mean', 'var'")
+
+        filled0 = np.broadcast_to(v[..., None, None, :], x.shape)
+        if has_batch:
             return filled0[..., None].astype(out_dtype, copy=False)
+        return filled0.astype(out_dtype, copy=False)
 
     def save_rgb_image(self, path:str, img: np.ndarray) -> None:
         """

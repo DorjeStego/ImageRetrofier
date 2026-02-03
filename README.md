@@ -10,6 +10,7 @@ Breaking this down:
 * `--output-filename /home/dorje/Public/retrofier/output-image.jpg` - Tell your computer which file path to save the output to.
 * `--tile-size 4` - The tile size for pixels, a value of 4 will use a tile size of 4x4 pixels in the input for one tiled pixel in the output.
 * `--transform pixel` - The type of image transformation to use. Currently, I recommend sticking with pixel (pixel art)
+* `--energy-method e` - For `--transform energy`, choose the per-channel tile metric: `e`, `rms`, `mean`, or `var`.
 * `--n-colours 16` - The number of colours to use in the final palate. I recommend 8, 16, or 32.
 * `--flatten-pases 6` - How aggressively the image is flattened. I recommend between 3 and 10 passes.
 * `--flatten-ms 5` - Must be an odd integer of at least 3. This defines how many adjacent tiles the flattening operation is looking at. Normally I recommend 3 or 5.
