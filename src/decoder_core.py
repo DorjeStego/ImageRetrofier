@@ -490,6 +490,8 @@ class Decoder:
             # of tiles using a deterministic coordinate hash mask.
             dither_strength = 0.55  # 0.0=no dither, 1.0=full dither
             yy, xx = np.indices((ty, tx), dtype=np.uint32)
+            # Large odd multipliers scramble tile (row, col) into a stable
+            # pseudo-random uint32, reducing visible repeating grid patterns.
             h = (yy * np.uint32(73856093)) ^ (xx * np.uint32(19349663))
             mask = (h.astype(np.float64) / float(np.iinfo(np.uint32).max)) < dither_strength
             small_q = np.where(mask[..., None], small_di, small_no)
