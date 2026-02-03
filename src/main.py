@@ -110,7 +110,7 @@ def build_parser(program_info:Dict[str,str]) -> ArgumentParser:
     parser.add_argument("--flatten-passes", "-p", default="6", help="How many passes should the flattener make?")
     parser.add_argument("--flatten-ms", "-m", default="3", help="How many adjacent tiles should the flattener look at? Defaults to 3.")
     parser.add_argument("--dither", "-d", default="none", help="Enable dithering on the output image. Accepts true/false/none (also yes/no/on/off/1/0).")
-    parser.add_argument("--version", action="version", version="ImageRetrofier 0.2.0")
+    parser.add_argument("--version", action="version", version="ImageRetrofier 0.3.0")
     return parser
 
 def main(program_info:Dict[str,str]) -> None:
