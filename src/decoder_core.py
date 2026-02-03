@@ -508,17 +508,5 @@ class Decoder:
         # If we cropped, output is smaller; that’s intentional for a perfect tiling.
         return out
 
-class JPEG:
-    def __init__(self):
-        return
-
-class Bitmap:
-    def __init__(self):
-        return
-
-class PNG:
-    def __init__(self):
-        return
-
 if __name__ == "__main__":
     sys.exit()
