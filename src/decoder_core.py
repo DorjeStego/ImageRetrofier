@@ -472,15 +472,32 @@ class Decoder:
                 small[y, x, 1] = (dom >> 8) & 0xFF
                 small[y, x, 2] = dom & 0xFF
 
+        # Quantise + optional dithering on the TILE grid (small image), not within tiles.
+        # Then upscale so each tile remains a solid block.
+        img = Image.fromarray(small, mode="RGB")
+        palette_img = img.quantize(colors=n_colours, dither=Image.Dither.NONE)
+        img_q_small_no = img.quantize(palette=palette_img, dither=Image.Dither.NONE).convert("RGB")
+        small_no = np.asarray(img_q_small_no, dtype=np.uint8)
+
+        if dither:
+            img_q_small_di = img.quantize(
+                palette=palette_img,
+                dither=Image.Dither.FLOYDSTEINBERG
+            ).convert("RGB")
+            small_di = np.asarray(img_q_small_di, dtype=np.uint8)
+
+            # Keep dithering a bit gentler by applying it on only a fraction
+            # of tiles using a deterministic coordinate hash mask.
+            dither_strength = 0.55  # 0.0=no dither, 1.0=full dither
+            yy, xx = np.indices((ty, tx), dtype=np.uint32)
+            h = (yy * np.uint32(73856093)) ^ (xx * np.uint32(19349663))
+            mask = (h.astype(np.float64) / float(np.iinfo(np.uint32).max)) < dither_strength
+            small_q = np.where(mask[..., None], small_di, small_no)
+        else:
+            small_q = small_no
+
         # Upscale back to original working size using nearest-neighbor expansion (repeat).
-        pixelated = np.repeat(np.repeat(small, tile_size, axis=0), tile_size, axis=1)
-
-        # Quantise + optional dithering
-        img = Image.fromarray(pixelated, mode="RGB")
-        dither_flag = Image.FLOYDSTEINBERG if dither else Image.NONE
-        img_q = img.quantize(colors=n_colours, dither=dither_flag).convert("RGB")
-
-        out = np.asarray(img_q, dtype=np.uint8)
+        out = np.repeat(np.repeat(small_q, tile_size, axis=0), tile_size, axis=1)
 
         # If we padded, you may want to crop back to original H,W to “fit” the input frame.
         if mode == "pad_edge" and (out.shape[0] != h or out.shape[1] != w):
