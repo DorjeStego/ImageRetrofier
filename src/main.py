@@ -181,12 +181,12 @@ def main(program_info:Dict[str,str]) -> None:
     crt_preset = init_state.get("crt_preset")
     if crt_preset:
         presets = {
-            "low": {"scanline": 0.42, "mask": 0.30, "bloom": 0.14, "vignette": 0.28, "curvature": 0.10, "aberration": 2, "noise": 0.02, "fill_black": True},
-            "med": {"scanline": 0.56, "mask": 0.40, "bloom": 0.20, "vignette": 0.36, "curvature": 0.14, "aberration": 3, "noise": 0.03, "fill_black": True},
-            "high": {"scanline": 0.70, "mask": 0.52, "bloom": 0.28, "vignette": 0.46, "curvature": 0.18, "aberration": 4, "noise": 0.045, "fill_black": True},
-            "low-nb": {"scanline": 0.42, "mask": 0.30, "bloom": 0.14, "vignette": 0.28, "curvature": 0.0, "aberration": 2, "noise": 0.02, "fill_black": False},
-            "med-nb": {"scanline": 0.56, "mask": 0.40, "bloom": 0.20, "vignette": 0.36, "curvature": 0.0, "aberration": 3, "noise": 0.03, "fill_black": False},
-            "high-nb": {"scanline": 0.70, "mask": 0.52, "bloom": 0.28, "vignette": 0.46, "curvature": 0.0, "aberration": 4, "noise": 0.045, "fill_black": False},
+            "low": {"scanline": 0.42, "mask": 0.30, "bloom": 0.14, "vignette": 0.28, "curvature": 0.12, "aberration": 2, "noise": 0.02, "fill_black": True},
+            "med": {"scanline": 0.56, "mask": 0.40, "bloom": 0.20, "vignette": 0.36, "curvature": 0.18, "aberration": 3, "noise": 0.03, "fill_black": True},
+            "high": {"scanline": 0.70, "mask": 0.52, "bloom": 0.28, "vignette": 0.46, "curvature": 0.24, "aberration": 4, "noise": 0.045, "fill_black": True},
+            "low-nb": {"scanline": 0.42, "mask": 0.30, "bloom": 0.14, "vignette": 0.28, "curvature": 0.00, "aberration": 2, "noise": 0.02, "fill_black": False},
+            "med-nb": {"scanline": 0.56, "mask": 0.40, "bloom": 0.20, "vignette": 0.36, "curvature": 0.00, "aberration": 3, "noise": 0.03, "fill_black": False},
+            "high-nb": {"scanline": 0.70, "mask": 0.52, "bloom": 0.28, "vignette": 0.46, "curvature": 0.00, "aberration": 4, "noise": 0.045, "fill_black": False},
         }
         output_img = decoder.apply_crt_effect(output_img, **presets[crt_preset])
     decoder.save_rgb_image_per_channel(init_state.get("output"), output_img)

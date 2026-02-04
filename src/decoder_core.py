@@ -445,18 +445,20 @@ class Decoder:
             b = np.roll(rgb[..., 2], +aberration, axis=1)
             rgb = np.stack([r, g, b], axis=2)
 
-        # Simple bloom by adding back a soft blur.
-        if bloom > 0.0:
-            base_u8 = np.clip(rgb * 255.0, 0.0, 255.0).astype(np.uint8)
-            blur = Image.fromarray(base_u8, mode="RGB").filter(ImageFilter.GaussianBlur(radius=1.2))
-            blur_f = np.asarray(blur, dtype=np.float32) / 255.0
-            rgb = np.clip(rgb + bloom * blur_f, 0.0, 1.0)
-
-        # Radial vignette.
         yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
         nx = (xx / max(w - 1, 1) - 0.5) * 2.0
         ny = (yy / max(h - 1, 1) - 0.5) * 2.0
         rad = np.sqrt(nx * nx + ny * ny)
+
+        # Center-weighted bloom: stronger glow near the screen center.
+        if bloom > 0.0:
+            base_u8 = np.clip(rgb * 255.0, 0.0, 255.0).astype(np.uint8)
+            blur = Image.fromarray(base_u8, mode="RGB").filter(ImageFilter.GaussianBlur(radius=1.2))
+            blur_f = np.asarray(blur, dtype=np.float32) / 255.0
+            bloom_mask = np.clip(1.0 - 0.55 * (rad ** 2), 0.0, 1.0)
+            rgb = np.clip(rgb + (bloom * bloom_mask[..., None]) * blur_f, 0.0, 1.0)
+
+        # Radial vignette.
         vig = np.clip(1.0 - vignette * (rad ** 2), 0.0, 1.0)
         rgb *= vig[..., None]
 
