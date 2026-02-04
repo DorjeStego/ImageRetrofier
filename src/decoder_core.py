@@ -416,6 +416,8 @@ class Decoder:
         aberration: int = 1,
         noise: float = 0.01,
         fill_black: bool = True,
+        lift: float = 0.82,
+        gain: float = 1.20
     ) -> np.ndarray:
         """
         Apply a lightweight CRT-style post-process to an RGB image.
@@ -486,8 +488,8 @@ class Decoder:
 
         # Gamma lift + gain to preserve CRT styling without over-darkening midtones.
         rgb = np.clip(rgb, 0.0, 1.0)
-        rgb = np.power(rgb, 0.82)
-        rgb = rgb * 1.20
+        rgb = np.power(rgb, lift)
+        rgb = rgb * gain
         return np.clip(rgb * 255.0, 0.0, 255.0).astype(np.uint8)
 
     def pixel_art_dominant_tile_quantize(
