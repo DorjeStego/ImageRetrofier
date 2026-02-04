@@ -484,6 +484,10 @@ class Decoder:
         if noise > 0.0:
             rgb += np.random.normal(0.0, noise, size=rgb.shape).astype(np.float32)
 
+        # Gamma lift + gain to preserve CRT styling without over-darkening midtones.
+        rgb = np.clip(rgb, 0.0, 1.0)
+        rgb = np.power(rgb, 0.82)
+        rgb = rgb * 1.20
         return np.clip(rgb * 255.0, 0.0, 255.0).astype(np.uint8)
 
     def pixel_art_dominant_tile_quantize(
