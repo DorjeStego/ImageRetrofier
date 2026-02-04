@@ -28,6 +28,18 @@ def build_state(args: Namespace, parser: ArgumentParser) -> Dict[str,str|int|Non
         dither = False
     else:
         dither = None
+    crt_raw = str(args.crt).strip().lower() if getattr(args, "crt", None) is not None else "none"
+    if crt_raw in {"none", "false", "0", "no", "off"}:
+        crt_preset = None
+    elif crt_raw in {"true", "1", "yes", "on"}:
+        crt_preset = "med"
+    elif crt_raw in {"low", "med", "medium", "high", "low-nb", "med-nb", "high-nb", "noborder"}:
+        if crt_raw == "noborder":
+            crt_preset = "med-nb"
+        else:
+            crt_preset = "med" if crt_raw == "medium" else crt_raw
+    else:
+        crt_preset = "__invalid__"
 
     return { "input" : args.input_filename,
               "output" : args.output_filename,
@@ -40,7 +52,9 @@ def build_state(args: Namespace, parser: ArgumentParser) -> Dict[str,str|int|Non
               "flatten_passes": int(args.flatten_passes) if getattr(args, "flatten_passes", None) is not None else 1,
               "median_size": int(args.flatten_ms) if getattr(args, "median_size", None) is not None else 3,
               "dither": dither,
-              "dither_raw": args.dither if getattr(args, "dither", None) is not None else "none" }
+              "dither_raw": args.dither if getattr(args, "dither", None) is not None else "none",
+              "crt_preset": crt_preset,
+              "crt_raw": args.crt if getattr(args, "crt", None) is not None else "none" }
 
 def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParser) -> None:
     if not init_state.get("input"):
@@ -90,6 +104,11 @@ def validate_state(init_state:Dict[str, str|int|bool|Any], parser: ArgumentParse
             f"Invalid dithering argument. Accepts true/false/none (also yes/no/on/off/1/0). Got {init_state.get('dither_raw')}",
             parser
         )
+    if init_state.get("crt_preset") not in {None, "low", "med", "high", "low-nb", "med-nb", "high-nb"}:
+        raise ArgError(
+            f"Invalid crt argument. Accepts false/none/off, true (alias for medium), low/med/high, or low-nb/med-nb/high-nb for no black border fill. Got {init_state.get('crt_raw')}",
+            parser
+        )
     if init_state.get("verbose") == True:
         print("Validated input successfully. This does not mean filenames have been resolved.")
     return
@@ -110,6 +129,7 @@ def build_parser(program_info:Dict[str,str]) -> ArgumentParser:
     parser.add_argument("--flatten-passes", "-p", default="6", help="How many passes should the flattener make?")
     parser.add_argument("--flatten-ms", "-m", default="3", help="How many adjacent tiles should the flattener look at? Defaults to 3.")
     parser.add_argument("--dither", "-d", default="none", help="Enable dithering on the output image. Accepts true/false/none (also yes/no/on/off/1/0).")
+    parser.add_argument("--crt", default="none", help="CRT post-processing preset. Accepts false/none/off, true (alias for medium), low/med/high, or low-nb/med-nb/high-nb (no black border fill).")
     parser.add_argument("--version", action="version", version="ImageRetrofier 0.3.0")
     return parser
 
@@ -121,21 +141,18 @@ def main(program_info:Dict[str,str]) -> None:
     arr = decoder.decode_image_to_rows()
     # sanity check
     # decoder.untile_image_rgb(tiled)
-    untiled = None
-    pix = None
+    output_img = None
     if init_state.get("transform") == "dot":
         tiled = decoder.tile_image_rgb(arr, int(init_state.get("tile_size")), "crop")
         dot_filled = decoder.tile_dot_fill(tiled)
-        untiled = decoder.untile_image_rgb(dot_filled)
-        decoder.save_rgb_image_per_channel(init_state.get("output"), untiled)
-        return
+        output_img = decoder.untile_image_rgb(dot_filled)
     elif init_state.get("transform") == "energy":
         tiled = decoder.tile_image_rgb(arr, int(init_state.get("tile_size")), "crop")
         energy_filled = decoder.tile_channel_energy_fill(
             tiled,
             method=init_state.get("energy_method")
         )
-        untiled = decoder.untile_image_rgb(energy_filled)
+        output_img = decoder.untile_image_rgb(energy_filled)
     elif init_state.get("transform") == "pixel" or init_state.get("transform") == "pixel-dot":
         if init_state.get("transform") == "pixel-dot":
             tiled = decoder.tile_image_rgb(arr, int(init_state.get("tile_size")), "crop")
@@ -154,14 +171,25 @@ def main(program_info:Dict[str,str]) -> None:
             median_size=int(init_state.get("median_size")),
             passes=int(init_state.get("flatten_passes"))
         )
-        pix = decoder.pixel_art_dominant_tile_quantize(
+        output_img = decoder.pixel_art_dominant_tile_quantize(
             flat,
             tile_size=int(init_state.get("tile_size")),
             n_colours=int(init_state.get("n_colours")),
             dither=init_state.get("dither"),
             mode="crop")
-        decoder.save_rgb_image_per_channel(init_state.get("output"), pix)
-    assert pix is not None or untiled is not None
+    assert output_img is not None
+    crt_preset = init_state.get("crt_preset")
+    if crt_preset:
+        presets = {
+            "low": {"scanline": 0.42, "mask": 0.30, "bloom": 0.14, "vignette": 0.28, "curvature": 0.10, "aberration": 2, "noise": 0.02, "fill_black": True},
+            "med": {"scanline": 0.56, "mask": 0.40, "bloom": 0.20, "vignette": 0.36, "curvature": 0.14, "aberration": 3, "noise": 0.03, "fill_black": True},
+            "high": {"scanline": 0.70, "mask": 0.52, "bloom": 0.28, "vignette": 0.46, "curvature": 0.18, "aberration": 4, "noise": 0.045, "fill_black": True},
+            "low-nb": {"scanline": 0.42, "mask": 0.30, "bloom": 0.14, "vignette": 0.28, "curvature": 0.0, "aberration": 2, "noise": 0.02, "fill_black": False},
+            "med-nb": {"scanline": 0.56, "mask": 0.40, "bloom": 0.20, "vignette": 0.36, "curvature": 0.0, "aberration": 3, "noise": 0.03, "fill_black": False},
+            "high-nb": {"scanline": 0.70, "mask": 0.52, "bloom": 0.28, "vignette": 0.46, "curvature": 0.0, "aberration": 4, "noise": 0.045, "fill_black": False},
+        }
+        output_img = decoder.apply_crt_effect(output_img, **presets[crt_preset])
+    decoder.save_rgb_image_per_channel(init_state.get("output"), output_img)
     return
 
 if __name__ == '__main__':

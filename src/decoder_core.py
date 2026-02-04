@@ -404,6 +404,88 @@ class Decoder:
 
         return np.asarray(img, dtype=np.uint8)
 
+    def apply_crt_effect(
+        self,
+        arr: np.ndarray,
+        *,
+        scanline: float = 0.22,
+        mask: float = 0.12,
+        bloom: float = 0.08,
+        vignette: float = 0.18,
+        curvature: float = 0.06,
+        aberration: int = 1,
+        noise: float = 0.01,
+        fill_black: bool = True,
+    ) -> np.ndarray:
+        """
+        Apply a lightweight CRT-style post-process to an RGB image.
+        """
+        rgb = self._to_uint8_rgb(arr).astype(np.float32) / 255.0
+        h, w, _ = rgb.shape
+
+        # Horizontal scanline darkening.
+        y = np.arange(h, dtype=np.float32)[:, None, None]
+        scan = 1.0 - scanline * (0.5 + 0.5 * np.sin(2.0 * np.pi * y / 2.0))
+        rgb *= scan
+
+        # Vertical phosphor triad mask.
+        x = np.arange(w, dtype=np.int32)[None, :]
+        triad = np.zeros((1, w, 3), dtype=np.float32)
+        triad[0, x[0] % 3 == 0, 0] = 1.0
+        triad[0, x[0] % 3 == 1, 1] = 1.0
+        triad[0, x[0] % 3 == 2, 2] = 1.0
+        rgb *= (1.0 - mask) + mask * (0.7 + 0.3 * triad)
+
+        # Mild chromatic aberration.
+        if aberration > 0:
+            r = np.roll(rgb[..., 0], -aberration, axis=1)
+            g = rgb[..., 1]
+            b = np.roll(rgb[..., 2], +aberration, axis=1)
+            rgb = np.stack([r, g, b], axis=2)
+
+        # Simple bloom by adding back a soft blur.
+        if bloom > 0.0:
+            base_u8 = np.clip(rgb * 255.0, 0.0, 255.0).astype(np.uint8)
+            blur = Image.fromarray(base_u8, mode="RGB").filter(ImageFilter.GaussianBlur(radius=1.2))
+            blur_f = np.asarray(blur, dtype=np.float32) / 255.0
+            rgb = np.clip(rgb + bloom * blur_f, 0.0, 1.0)
+
+        # Radial vignette.
+        yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+        nx = (xx / max(w - 1, 1) - 0.5) * 2.0
+        ny = (yy / max(h - 1, 1) - 0.5) * 2.0
+        rad = np.sqrt(nx * nx + ny * ny)
+        vig = np.clip(1.0 - vignette * (rad ** 2), 0.0, 1.0)
+        rgb *= vig[..., None]
+
+        # Barrel distortion / screen curvature.
+        if curvature > 0.0:
+            r2 = nx * nx + ny * ny
+            sx = nx * (1.0 + curvature * r2)
+            sy = ny * (1.0 + curvature * r2)
+            # Overscan compensation keeps black fill near borders instead of
+            # pushing too much of the image out of bounds.
+            warp_scale = 1.0 + curvature * 0.9
+            sx = sx / warp_scale
+            sy = sy / warp_scale
+            src_x = np.rint(((sx + 1.0) * 0.5) * (w - 1)).astype(np.int32)
+            src_y = np.rint(((sy + 1.0) * 0.5) * (h - 1)).astype(np.int32)
+
+            if fill_black:
+                warped = np.zeros_like(rgb)
+                valid = (src_x >= 0) & (src_x < w) & (src_y >= 0) & (src_y < h)
+                warped[valid] = rgb[src_y[valid], src_x[valid]]
+                rgb = warped
+            else:
+                src_x = np.clip(src_x, 0, w - 1)
+                src_y = np.clip(src_y, 0, h - 1)
+                rgb = rgb[src_y, src_x]
+
+        if noise > 0.0:
+            rgb += np.random.normal(0.0, noise, size=rgb.shape).astype(np.float32)
+
+        return np.clip(rgb * 255.0, 0.0, 255.0).astype(np.uint8)
+
     def pixel_art_dominant_tile_quantize(
         self,
         arr: np.ndarray,
