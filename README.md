@@ -28,3 +28,4 @@ Note that this was written and tested on the Python 3.13 interpreter.
 
 * Added version argument.
 * Corrected png input file processing crash issue.
+* Added CRT effect (WIP)
